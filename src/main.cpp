@@ -205,6 +205,7 @@ bool g_DKeyPressed = false;
 int win_width = 1280;
 int win_height = 720;
 
+
 int main(int argc, char* argv[])
 {
     // Inicializamos a biblioteca GLFW, utilizada para criar uma janela do
@@ -322,6 +323,8 @@ int main(int argc, char* argv[])
     glm::vec4 camera_position_c  = glm::vec4(0.5f,0.5f,0.5f,1.0f);
     //setamos a velocidade (passo) da camera
     float speed = 0.04;
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
 
     // Ficamos em loop, renderizando, até que o usuário feche a janela
