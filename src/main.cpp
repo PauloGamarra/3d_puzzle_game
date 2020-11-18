@@ -195,6 +195,9 @@ GLint bbox_max_uniform;
 // Número de texturas carregadas pela função LoadTextureImage()
 GLuint g_NumLoadedTextures = 0;
 
+//CONSTANTES
+# define PI           3.14159265358979323846
+
 // Flags referentes as teclas de deslocamento estarem sendo pressionadas
 bool g_WKeyPressed = false;
 bool g_SKeyPressed = false;
@@ -422,6 +425,8 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(view_uniform       , 1 , GL_FALSE , glm::value_ptr(view));
         glUniformMatrix4fv(projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
+
+
         #define SPHERE 0
         #define BUNNY  1
         #define PLANE  2
@@ -612,6 +617,8 @@ void LoadShadersFromFiles()
     model_uniform           = glGetUniformLocation(program_id, "model"); // Variável da matriz "model"
     view_uniform            = glGetUniformLocation(program_id, "view"); // Variável da matriz "view" em shader_vertex.glsl
     projection_uniform      = glGetUniformLocation(program_id, "projection"); // Variável da matriz "projection" em shader_vertex.glsl
+
+
     object_id_uniform       = glGetUniformLocation(program_id, "object_id"); // Variável "object_id" em shader_fragment.glsl
     bbox_min_uniform        = glGetUniformLocation(program_id, "bbox_min");
     bbox_max_uniform        = glGetUniformLocation(program_id, "bbox_max");
