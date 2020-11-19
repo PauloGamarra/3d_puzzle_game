@@ -209,6 +209,22 @@ int win_width = 1280;
 int win_height = 720;
 
 
+// booleanos de estado do jogo
+bool deer_idol_retrieved = false;
+bool cow_idol_retrieved = false;
+bool bunny_idol_retrieved = false;
+bool duck_idol_retrieved = false;
+
+bool deer_idol_aligned = false;
+bool vcow_idol_aligned = false;
+bool bunny_idol_aligned = false;
+bool duck_idol_aligned = false;
+
+bool deer_idol_found = false;
+bool cow_idol_found = false;
+bool bunny_idol_found = false;
+bool duck_idol_found = false;
+
 int main(int argc, char* argv[])
 {
     // Inicializamos a biblioteca GLFW, utilizada para criar uma janela do
@@ -283,8 +299,15 @@ int main(int argc, char* argv[])
     LoadShadersFromFiles();
 
     // Carregamos duas imagens para serem utilizadas como textura
-    LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");      // TextureImage0
-    LoadTextureImage("../../data/tc-earth_nightmap_citylights.gif"); // TextureImage1
+    LoadTextureImage("../../data/tc-earth_daymap_surface.jpg");     // TextureImage0
+    LoadTextureImage("../../data/cobblestone.png");                 // TextureImage1
+    LoadTextureImage("../../data/grass.jpg");                       // TextureImage2
+    LoadTextureImage("../../data/idol_texture.png");                // TextureImage3
+    LoadTextureImage("../../data/skybox.png");                      // TextureImage4
+
+
+
+
 
     // Construímos a representação de objetos geométricos através de malhas de triângulos
     ObjModel spheremodel("../../data/sphere.obj");
@@ -298,6 +321,23 @@ int main(int argc, char* argv[])
     ObjModel planemodel("../../data/plane.obj");
     ComputeNormals(&planemodel);
     BuildTrianglesAndAddToVirtualScene(&planemodel);
+
+    ObjModel cowmodel("../../data/cow.obj");
+    ComputeNormals(&cowmodel);
+    BuildTrianglesAndAddToVirtualScene(&cowmodel);
+
+    ObjModel veadomodel("../../data/veado.obj");
+    ComputeNormals(&veadomodel);
+    BuildTrianglesAndAddToVirtualScene(&veadomodel);
+
+    ObjModel patomodel("../../data/pato.obj");
+    ComputeNormals(&patomodel);
+    BuildTrianglesAndAddToVirtualScene(&patomodel);
+
+    ObjModel cubemodel("../../data/cube.obj");
+    ComputeNormals(&cubemodel);
+    BuildTrianglesAndAddToVirtualScene(&cubemodel);
+
 
     if ( argc > 1 )
     {
@@ -323,9 +363,9 @@ int main(int argc, char* argv[])
     glm::mat4 the_view;
 
     //setamos a posição inicial da camera
-    glm::vec4 camera_position_c  = glm::vec4(0.5f,0.5f,0.5f,1.0f);
+    glm::vec4 camera_position_c  = glm::vec4(2.0f,0.5f,2.0f,1.0f);
     //setamos a velocidade (passo) da camera
-    float speed = 0.04;
+    float speed = 0.1;
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
@@ -394,7 +434,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -10.0f; // Posição do "far plane"
+        float farplane  = -100.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -430,28 +470,150 @@ int main(int argc, char* argv[])
         #define SPHERE 0
         #define BUNNY  1
         #define PLANE  2
+        #define COW 3
+        #define VEADO 4
+        #define PATO 5
+        #define CUBE 6
 
-        // Desenhamos o modelo da esfera
-        model = Matrix_Translate(-1.0f,0.0f,0.0f)
-              * Matrix_Rotate_Z(0.6f)
-              * Matrix_Rotate_X(0.2f)
+        // Desenhamos a skyboxd
+        model = Matrix_Translate(0.0f,0.0f,0.0f)
+              * Matrix_Scale(10.0f, 10.0f, 10.0f)
+              * Matrix_Rotate_Z(0.0f)
+              * Matrix_Rotate_X(0.0f)
               * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, SPHERE);
         DrawVirtualObject("sphere");
 
-        // Desenhamos o modelo do coelho
-        model = Matrix_Translate(1.0f,0.0f,0.0f)
-              * Matrix_Rotate_X(g_AngleX + (float)glfwGetTime() * 0.1f);
-        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(object_id_uniform, BUNNY);
-        DrawVirtualObject("bunny");
-
+        //=======================================================================
         // Desenhamos o plano do chão
-        model = Matrix_Translate(0.0f,-1.1f,0.0f);
+        model = Matrix_Translate(0.0f,-1.1f,0.0f)
+              * Matrix_Scale(60.0f,1.0f,60.0f);
+
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, PLANE);
         DrawVirtualObject("plane");
+
+        //Desenhamos os idolos
+        //=======================================================================
+        //COELHO
+        if (bunny_idol_retrieved){
+            // Se coelho foi recuperado, desenha no altar
+            model = Matrix_Translate(3.0f,-0.2f,-3.0f)
+                  * Matrix_Scale(0.3f, 0.3f,0.3f);
+            glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(object_id_uniform, BUNNY);
+            DrawVirtualObject("bunny");
+        }
+
+        if (!bunny_idol_found){
+            // Se coelho ainda não foi achado, desenha no campo
+            model = Matrix_Translate(19.0f,-0.8f,-42.0f)
+                  * Matrix_Scale(0.3f, 0.3f,0.3f);
+            glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(object_id_uniform, BUNNY);
+            DrawVirtualObject("bunny");
+        }
+
+        //VACA
+        //==========================================================================
+        if (cow_idol_retrieved){
+            // Se vaca foi recuperado, desenha no altar
+            model = Matrix_Translate(-3.0f,-0.2f,-3.0f)
+                  * Matrix_Scale(0.5f, 0.5f,0.5f);
+            glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(object_id_uniform, COW);
+            DrawVirtualObject("cow");
+        }
+
+        if (!cow_idol_found){
+            // Se coelho ainda não foi achado, desenha no campo
+            model = Matrix_Translate(-5.0f,-0.8f,37.0f)
+                  * Matrix_Scale(0.5f, 0.5f,0.5f);
+            glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(object_id_uniform, COW);
+            DrawVirtualObject("cow");
+        }
+
+
+        //VEADO
+        //==========================================================================
+
+        if (deer_idol_retrieved){
+            // Se veado foi recuperado, desenha no altar
+            model = Matrix_Translate(-3.0f, -0.5f, 3.0f)
+                  * Matrix_Scale(0.005f, 0.005f,0.005f)
+                  * Matrix_Rotate_X(-3.141592/2);
+            glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(object_id_uniform, VEADO);
+            DrawVirtualObject("veado");
+        }
+        if (!deer_idol_found){
+            // Se coelho ainda não foi achado, desenha no campo
+            model = Matrix_Translate(-40.0f,-1.0f,-15.0f)
+                  * Matrix_Scale(0.005f, 0.005f,0.005f)
+                  * Matrix_Rotate_X(-3.141592/2)
+                  * Matrix_Rotate_Y(-3.141592/2);
+            glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(object_id_uniform, VEADO);
+            DrawVirtualObject("veado");
+        }
+
+        //PATO
+        //==========================================================================
+
+        if (duck_idol_retrieved){
+            // Se pato foi recuperado, desenha no altar
+            model = Matrix_Translate(3.0f, -0.5f, 3.0f)
+                  * Matrix_Scale(0.01f, 0.01f,0.01f)
+                  * Matrix_Rotate_X(-3.141592/2);
+            glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(object_id_uniform, PATO);
+            DrawVirtualObject("pato");
+        }
+        if (!cow_idol_found){
+            // Se coelho ainda não foi achado, desenha no campo
+            model = Matrix_Translate(12.0f,-1.1f,50.0f)
+                  * Matrix_Scale(0.01f, 0.01f,0.01f)
+                  * Matrix_Rotate_X(-3.141592/2);
+            glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+            glUniform1i(object_id_uniform, PATO);
+            DrawVirtualObject("pato");
+        }
+
+
+        //=========================================================================
+        // Desenho do Altar
+        model = Matrix_Translate(0.0f, -1.0f, 0.0f)
+              * Matrix_Scale(6.0f, 0.1f,6.0f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, CUBE);
+        DrawVirtualObject("cube");
+
+        model = Matrix_Translate(3.0f, -1.0f, 3.0f)
+              * Matrix_Scale(1.0f, 1.0f,1.0f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, CUBE);
+        DrawVirtualObject("cube");
+
+        model = Matrix_Translate(-3.0f, -1.0f, 3.0f)
+              * Matrix_Scale(1.0f, 1.0f,1.0f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, CUBE);
+        DrawVirtualObject("cube");
+
+        model = Matrix_Translate(3.0f, -1.0f, -3.0f)
+              * Matrix_Scale(1.0f, 1.0f,1.0f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, CUBE);
+        DrawVirtualObject("cube");
+
+        model = Matrix_Translate(-3.0f, -1.0f, -3.0f)
+              * Matrix_Scale(1.0f, 1.0f,1.0f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, CUBE);
+        DrawVirtualObject("cube");
+        //=========================================================================
 
         // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
         // passamos por todos os sistemas de coordenadas armazenados nas
@@ -628,6 +790,9 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(program_id, "TextureImage0"), 0);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage1"), 1);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), 2);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), 3);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), 4);
+
     glUseProgram(0);
 }
 
