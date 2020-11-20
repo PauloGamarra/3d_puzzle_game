@@ -273,9 +273,22 @@ bool lever_left = true;
 
 // VICTORY ANGLE
 float victory_pato = M_PI/2;
-float victory_bunny = 0;
+float victory_bunny = M_PI;
 float victory_veado = 3*M_PI/2;
-float victory_cow = M_PI;
+float victory_cow = 3*M_PI/2;
+
+
+
+// Condor
+float bezier_t_ultimo_movimento = glfwGetTime();
+float t_bezier = 0;
+float u0 = 0.4;
+float u1 = 1.71;
+float u2 = 0.67;
+float u3 = -0.67;
+float bezier_speed = 0.1;
+
+
 
 bool colisao(glm::vec4 posicao)
 {
@@ -400,6 +413,12 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/wood_texture.png");                // TextureImage5
     LoadTextureImage("../../data/cooper_texture.png");              // TextureImage6
     LoadTextureImage("../../data/wall.jpg");                        // TextureImage7
+    LoadTextureImage("../../data/gold_texture.jpg");                // TextureImage8
+    LoadTextureImage("../../data/bunny.png");                // TextureImage9
+    LoadTextureImage("../../data/cow.png");                // TextureImage10
+    LoadTextureImage("../../data/deer.png");                // TextureImage11
+    LoadTextureImage("../../data/duck.png");                // TextureImage12
+
 
 
 
@@ -445,6 +464,10 @@ int main(int argc, char* argv[])
     ObjModel levermodel("../../data/lever.obj");
     ComputeNormals(&levermodel);
     BuildTrianglesAndAddToVirtualScene(&levermodel);
+
+    ObjModel condormodel("../../data/condor.obj");
+    ComputeNormals(&condormodel);
+    BuildTrianglesAndAddToVirtualScene(&condormodel);
 
     if ( argc > 1 )
     {
@@ -726,6 +749,15 @@ int main(int argc, char* argv[])
         #define LEVER    9
         #define XWALL    10
         #define ZWALL    11
+        #define CONDOR   12
+        #define BUNNY_FRAME 13
+        #define COW_FRAME 14
+        #define DEER_FRAME 15
+        #define DUCK_FRAME 16
+
+
+
+
 
 
         // Desenhamos a skyboxd
@@ -994,6 +1026,76 @@ int main(int argc, char* argv[])
         glUniform1i(object_id_uniform, ZWALL);
         DrawVirtualObject("plane");
 
+        //==================================================================================================
+        // DESENHO DAS DICAS
+
+
+        model = Matrix_Translate(0.0f, 0.0f, -59.0f)
+              * Matrix_Rotate_X(M_PI_2);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, BUNNY_FRAME);
+        DrawVirtualObject("plane");
+
+        model = Matrix_Translate(0.0f, 0.0f, 59.0f)
+              * Matrix_Rotate_X(-M_PI_2);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, COW_FRAME);
+        DrawVirtualObject("plane");
+
+        model = Matrix_Translate(-59.0f, 0.0f, 0.0f)
+              * Matrix_Rotate_Z(-M_PI_2);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, DEER_FRAME);
+        DrawVirtualObject("plane");
+
+        model = Matrix_Translate(59.0f, 0.0f, 0.0f)
+              * Matrix_Rotate_Z(M_PI_2);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, DUCK_FRAME);
+        DrawVirtualObject("plane");
+
+
+        //==================================================================================================
+        // DESENHO DO CONDOR
+
+        float bezier_t = glfwGetTime();
+        float bezier_delta_t = bezier_t - bezier_t_ultimo_movimento;
+        bezier_t_ultimo_movimento = bezier_t;
+
+        if (t_bezier >=1)
+        {
+            t_bezier = 0;
+        }
+
+        t_bezier = t_bezier + bezier_speed*bezier_delta_t;
+
+
+        glm::vec2 p1 = glm::vec2(-60.0f, -60.0f);
+        glm::vec2 p2 = glm::vec2(60.0f, -60.0f);
+        glm::vec2 p3 = glm::vec2(-60.0f, 60.0f);
+        glm::vec2 p4 = glm::vec2(60.0f, 60.0f);
+
+        glm::vec2 c12 = p1 + t_bezier * (p2 - p1);
+        glm::vec2 c23 = p2 + t_bezier * (p3 - p2);
+        glm::vec2 c34 = p3 + t_bezier * (p4 - p3);
+
+        glm::vec2 c123 = c12 + t_bezier * (c23 - c12);
+        glm::vec2 c234 = c23 + t_bezier * (c34 - c23);
+
+        glm::vec2 condor_coord = c123 + t_bezier * (c234 - c123);
+
+        float condor_x = condor_coord[0];
+        float condor_y = condor_coord[1];
+
+        printf("%f | %f",condor_x,condor_y);
+
+
+        model = Matrix_Translate(condor_x, 20.0f, condor_y)
+              * Matrix_Scale(30.0f, 30.0f, 30.0f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, CONDOR);
+        DrawVirtualObject("condor");
+
 
         //=========================================================================
 
@@ -1033,13 +1135,9 @@ int main(int argc, char* argv[])
         //                                             norm(glm::vec4(-40.0f,-1.0f,-15.0f,1.0f) - camera_position_c),
         //                                             norm(glm::vec4(12.0f,-1.1f,50.0f,1.0f) - camera_position_c));
 
-        printf("| %d | %d | %d | %d |pos:( %f , %f , %f )",victory_cow == g_AngleYCow,
-                                                           victory_pato == g_AngleYDuck,
-                                                           victory_veado== g_AngleYDeer,
-                                                           g_AngleYBunny == victory_bunny,
-                                                           camera_position_c[0],
-                                                           camera_position_c[1],
-                                                           camera_position_c[2]);
+        printf("pos:( %f , %f , %f )",camera_position_c[0],
+                                     camera_position_c[1],
+                                     camera_position_c[2]);
 
     }
 
@@ -1190,6 +1288,13 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(program_id, "TextureImage5"), 5);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage6"), 6);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage7"), 7);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage8"), 8);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage9"), 9);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage10"), 10);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage11"), 11);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage12"), 12);
+
+
 
 
     glUseProgram(0);

@@ -31,6 +31,12 @@ uniform mat4 projection;
 #define LEVER 9
 #define XWALL 10
 #define ZWALL 11
+#define CONDOR 12
+#define BUNNY_FRAME 13
+#define COW_FRAME 14
+#define DEER_FRAME 15
+#define DUCK_FRAME 16
+
 
 uniform int object_id;
 
@@ -47,6 +53,13 @@ uniform sampler2D TextureImage4;
 uniform sampler2D TextureImage5;
 uniform sampler2D TextureImage6;
 uniform sampler2D TextureImage7;
+uniform sampler2D TextureImage8;
+uniform sampler2D TextureImage9;
+uniform sampler2D TextureImage10;
+uniform sampler2D TextureImage11;
+uniform sampler2D TextureImage12;
+
+
 
 
 
@@ -216,6 +229,54 @@ void main()
         Ka = vec3(0.0,0.0,0.0);
         q = 20.0;
     }
+    else if (object_id == CONDOR)
+    {
+        float rx = bbox_min.x;
+        float qx = bbox_max.x;
+
+        float ry = bbox_min.y;
+        float qy = bbox_max.y;
+
+        float rz = bbox_min.z;
+        float qz = bbox_max.z;
+
+        U = ((position_model.x - rx) / (qx - rx)) * 4;
+        V = ((position_model.z - rz) / (qz - rz)) * 4;
+
+        Kd = texture(TextureImage6, vec2(U,V)).rgb;
+        Ks = vec3(0.3,0.3,0.3);
+        Ka = vec3(0.0,0.0,0.0);
+        q = 20.0;
+    }
+    else if (object_id == BUNNY_FRAME)
+    {
+        U = texcoords.x ;
+        V = texcoords.y ;
+
+        Kd = texture(TextureImage9, vec2(U,V)).rgb;
+    }
+    else if (object_id == COW_FRAME)
+    {
+        U = texcoords.x;
+        V = -texcoords.y;
+
+        Kd = texture(TextureImage10, vec2(U,V)).rgb;
+    }
+    else if (object_id == DEER_FRAME)
+    {
+        U = texcoords.y;
+        V = -texcoords.x;
+
+        Kd = texture(TextureImage11, vec2(U,V)).rgb;
+    }
+    else if (object_id == DUCK_FRAME)
+    {
+        U = texcoords.y;
+        V = texcoords.x;
+
+        Kd = texture(TextureImage12, vec2(U,V)).rgb;
+    }
+
 
     // Espectro da fonte de iluminação
     vec3 I = vec3(1.0,1.0,1.0); // PREENCH AQUI o espectro da fonte de luz
