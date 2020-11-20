@@ -48,6 +48,12 @@
 #include "utils.h"
 #include "matrices.h"
 
+// Constantes
+#define M_PI   3.14159265358979323846
+#define M_PI_2 1.57079632679489661923
+#define EULER 2.71828
+
+
 // Estrutura que representa um modelo geométrico carregado a partir de um
 // arquivo ".obj". Veja https://en.wikipedia.org/wiki/Wavefront_.obj_file .
 struct ObjModel
@@ -148,10 +154,7 @@ std::stack<glm::mat4>  g_MatrixStack;
 // Razão de proporção da janela (largura/altura). Veja função FramebufferSizeCallback().
 float g_ScreenRatio = 1.0f;
 
-// Ângulos de Euler que controlam a rotação de um dos cubos da cena virtual
-float g_AngleX = 0.0f;
-float g_AngleY = 0.0f;
-float g_AngleZ = 0.0f;
+
 
 // "g_LeftMouseButtonPressed = true" se o usuário está com o botão esquerdo do mouse
 // pressionado no momento atual. Veja função MouseButtonCallback().
@@ -204,9 +207,15 @@ bool g_SKeyPressed = false;
 bool g_AKeyPressed = false;
 bool g_DKeyPressed = false;
 
+//setamos a velocidade (passo) da camera
+float speed = 5;
+
+// Flags referentes as teclas de interação
+bool g_EKeyPressed = false;
+
 //resolução da tela
-int win_width = 1280;
-int win_height = 720;
+int win_width = 1800;
+int win_height = 900;
 
 
 // booleanos de estado do jogo
@@ -224,6 +233,39 @@ bool deer_idol_found = false;
 bool cow_idol_found = false;
 bool bunny_idol_found = false;
 bool duck_idol_found = false;
+
+// Ângulos de Euler que controlam a rotação de cada um dos idolos
+bool bunny_idol_rotating = false;
+float bunny_t_ultimo_movimento = glfwGetTime();
+float bunny_ultimo_angulo = 0;
+float g_AngleXBunny = 0.0f;
+float g_AngleYBunny = 0.0f;
+float g_AngleZBunny = 0.0f;
+
+bool cow_idol_rotating = false;
+float cow_t_ultimo_movimento = glfwGetTime();
+float cow_ultimo_angulo = 0;
+float g_AngleXCow = 0.0f;
+float g_AngleYCow = 0.0f;
+float g_AngleZCow = 0.0f;
+
+bool deer_idol_rotating = false;
+float deer_t_ultimo_movimento = glfwGetTime();
+float deer_ultimo_angulo = 0;
+float g_AngleXDeer = 0.0f;
+float g_AngleYDeer = 0.0f;
+float g_AngleZDeer = 0.0f;
+
+bool duck_idol_rotating = false;
+float duck_t_ultimo_movimento = glfwGetTime();
+float duck_ultimo_angulo = 0;
+float g_AngleXDuck = 0.0f;
+float g_AngleYDuck = 0.0f;
+float g_AngleZDuck = 0.0f;
+
+float rotation_velocity = 2;
+
+
 
 int main(int argc, char* argv[])
 {
@@ -338,6 +380,10 @@ int main(int argc, char* argv[])
     ComputeNormals(&cubemodel);
     BuildTrianglesAndAddToVirtualScene(&cubemodel);
 
+    ObjModel skydomemodel("../../data/skydome.obj");
+    ComputeNormals(&skydomemodel);
+    BuildTrianglesAndAddToVirtualScene(&skydomemodel);
+
 
     if ( argc > 1 )
     {
@@ -363,16 +409,18 @@ int main(int argc, char* argv[])
     glm::mat4 the_view;
 
     //setamos a posição inicial da camera
-    glm::vec4 camera_position_c  = glm::vec4(2.0f,0.5f,2.0f,1.0f);
-    //setamos a velocidade (passo) da camera
-    float speed = 0.1;
+    glm::vec4 camera_position_c  = glm::vec4(0.0f,0.5f,0.0f,1.0f);
+
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
 
     // Ficamos em loop, renderizando, até que o usuário feche a janela
+    float t_ultimo_movimento = glfwGetTime();
     while (!glfwWindowShouldClose(window))
     {
+
+
         // Aqui executamos as operações de renderização
 
         // Definimos a cor do "fundo" do framebuffer como branco.  Tal cor é
@@ -411,17 +459,20 @@ int main(int argc, char* argv[])
         camera_w_vector = camera_w_vector/norm(camera_w_vector);
 
         //se alguma das teclas de deslocamento foi pressionada, é dado um passo da posição da camera na direção correspondente
+        float t_now = glfwGetTime();
+        float delta_t_movimento = t_now - t_ultimo_movimento;
+        t_ultimo_movimento = t_now;
         if (g_WKeyPressed){
-            camera_position_c = camera_position_c - camera_w_vector * speed;
+            camera_position_c = camera_position_c - camera_w_vector * speed * delta_t_movimento;
         }
         if (g_SKeyPressed){
-            camera_position_c = camera_position_c + camera_w_vector * speed;
+            camera_position_c = camera_position_c + camera_w_vector * speed * delta_t_movimento;
         }
         if (g_DKeyPressed){
-            camera_position_c = camera_position_c + camera_u_vector * speed;
+            camera_position_c = camera_position_c + camera_u_vector * speed * delta_t_movimento;
         }
         if (g_AKeyPressed){
-            camera_position_c = camera_position_c - camera_u_vector * speed;
+            camera_position_c = camera_position_c - camera_u_vector * speed * delta_t_movimento;
         }
 
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
@@ -434,7 +485,7 @@ int main(int argc, char* argv[])
         // Note que, no sistema de coordenadas da câmera, os planos near e far
         // estão no sentido negativo! Veja slides 176-204 do documento Aula_09_Projecoes.pdf.
         float nearplane = -0.1f;  // Posição do "near plane"
-        float farplane  = -100.0f; // Posição do "far plane"
+        float farplane  = -200.0f; // Posição do "far plane"
 
         if (g_UsePerspectiveProjection)
         {
@@ -466,6 +517,111 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(projection_uniform , 1 , GL_FALSE , glm::value_ptr(projection));
 
 
+        //IDOLO AINDA NÃO ENCONTRADO
+        if (acos(dotproduct((glm::vec4(19.0f,-0.8f,-42.0f, 1.0f)-camera_position_c)/norm(glm::vec4(19.0f,-0.8f,-42.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(19.0f,-0.8f,-42.0f, 1.0f) - camera_position_c) < 4){
+            bunny_idol_found = true;
+        }
+        if (acos(dotproduct((glm::vec4(-5.0f,-0.8f,37.0f, 1.0f)-camera_position_c)/norm(glm::vec4(-5.0f,-0.8f,37.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(-5.0f,-0.8f,37.0f, 1.0f) - camera_position_c) < 4){
+            cow_idol_found = true;
+        }
+        if (acos(dotproduct((glm::vec4(-40.0f,-1.0f,-15.0f, 1.0f)-camera_position_c)/norm(glm::vec4(-40.0f,-1.0f,-15.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(-40.0f,-1.0f,-15.0f, 1.0f) - camera_position_c) < 4){
+            deer_idol_found = true;
+        }
+        if (acos(dotproduct((glm::vec4(12.0f,-1.1f,50.0f, 1.0f)-camera_position_c)/norm(glm::vec4(12.0f,-1.1f,50.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(12.0f,-1.1f,50.0f, 1.0f) - camera_position_c) < 4){
+            duck_idol_found = true;
+        }
+
+        //IDOLO AINDA NÃO DEVOLVIDO
+        if (acos(dotproduct((glm::vec4(3.0f,-0.2f,-3.0f, 1.0f)-camera_position_c)/norm(glm::vec4(3.0f,-0.2f,-3.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(3.0f,-0.2f,-3.0f, 1.0f) - camera_position_c) < 4
+            && bunny_idol_found
+            && !bunny_idol_retrieved){
+            bunny_idol_retrieved = true;
+            g_AngleYBunny = 0;
+        }
+        if (acos(dotproduct((glm::vec4(-3.0f,-0.2f,-3.0f, 1.0f)-camera_position_c)/norm(glm::vec4(-3.0f,-0.2f,-3.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(-3.0f,-0.2f,-3.0f, 1.0f) - camera_position_c) < 4
+            && cow_idol_found
+            && !cow_idol_retrieved){
+            cow_idol_retrieved = true;
+            g_AngleYCow = 0;
+        }
+        if (acos(dotproduct((glm::vec4(-3.0f, -0.5f, 3.0f, 1.0f)-camera_position_c)/norm(glm::vec4(-3.0f, -0.5f, 3.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(-3.0f, -0.5f, 3.0f, 1.0f) - camera_position_c) < 4
+            && deer_idol_found
+            && !deer_idol_retrieved){
+            deer_idol_retrieved = true;
+            g_AngleYDeer = 0;
+        }
+        if (acos(dotproduct((glm::vec4(3.0f, -0.5f, 3.0f, 1.0f)-camera_position_c)/norm(glm::vec4(3.0f, -0.5f, 3.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(3.0f, -0.5f, 3.0f, 1.0f) - camera_position_c) < 4
+            && duck_idol_found
+            && !duck_idol_retrieved){
+            duck_idol_retrieved = true;
+            g_AngleYDuck = 0;
+        }
+
+        //IDOLO DEVOLVIDO
+        if (acos(dotproduct((glm::vec4(3.0f,-0.2f,-3.0f, 1.0f)-camera_position_c)/norm(glm::vec4(3.0f,-0.2f,-3.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(3.0f,-0.2f,-3.0f, 1.0f) - camera_position_c) < 4
+            && bunny_idol_retrieved
+            && !bunny_idol_rotating){
+            bunny_idol_rotating = true;
+            bunny_t_ultimo_movimento = glfwGetTime();
+            bunny_ultimo_angulo = g_AngleYBunny;
+        }
+        if (acos(dotproduct((glm::vec4(-3.0f,-0.2f,-3.0f, 1.0f)-camera_position_c)/norm(glm::vec4(-3.0f,-0.2f,-3.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(-3.0f,-0.2f,-3.0f, 1.0f) - camera_position_c) < 4
+            && cow_idol_retrieved
+            && !cow_idol_rotating){
+            cow_idol_rotating = true;
+            cow_t_ultimo_movimento = glfwGetTime();
+            cow_ultimo_angulo = g_AngleYCow;
+        }
+        if (acos(dotproduct((glm::vec4(-3.0f, -0.5f, 3.0f, 1.0f)-camera_position_c)/norm(glm::vec4(-3.0f, -0.5f, 3.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(-3.0f, -0.5f, 3.0f, 1.0f) - camera_position_c) < 4
+            && deer_idol_retrieved
+            && !deer_idol_rotating){
+            deer_idol_rotating = true;
+            deer_t_ultimo_movimento = glfwGetTime();
+            deer_ultimo_angulo = g_AngleYDeer;
+        }
+        if (acos(dotproduct((glm::vec4(3.0f, -0.5f, 3.0f, 1.0f)-camera_position_c)/norm(glm::vec4(3.0f, -0.5f, 3.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(3.0f, -0.5f, 3.0f, 1.0f) - camera_position_c) < 4
+            && duck_idol_retrieved
+            && !duck_idol_rotating){
+            duck_idol_rotating = true;
+            duck_t_ultimo_movimento = glfwGetTime();
+            duck_ultimo_angulo = g_AngleYDuck;
+        }
 
         #define SPHERE 0
         #define BUNNY  1
@@ -474,16 +630,13 @@ int main(int argc, char* argv[])
         #define VEADO 4
         #define PATO 5
         #define CUBE 6
+        #define SKYDOME 7
 
         // Desenhamos a skyboxd
-        model = Matrix_Translate(0.0f,0.0f,0.0f)
-              * Matrix_Scale(10.0f, 10.0f, 10.0f)
-              * Matrix_Rotate_Z(0.0f)
-              * Matrix_Rotate_X(0.0f)
-              * Matrix_Rotate_Y(g_AngleY + (float)glfwGetTime() * 0.1f);
+        model = Matrix_Scale(100.0f, 100.0f, 100.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
-        glUniform1i(object_id_uniform, SPHERE);
-        DrawVirtualObject("sphere");
+        glUniform1i(object_id_uniform, SKYDOME);
+        DrawVirtualObject("skydome");
 
         //=======================================================================
         // Desenhamos o plano do chão
@@ -498,9 +651,20 @@ int main(int argc, char* argv[])
         //=======================================================================
         //COELHO
         if (bunny_idol_retrieved){
+            if (bunny_idol_rotating){
+                float bunny_t = glfwGetTime();
+                float bunny_delta_t = bunny_t - bunny_t_ultimo_movimento;
+                bunny_t_ultimo_movimento = bunny_t;
+                g_AngleYBunny = g_AngleYBunny + bunny_delta_t * rotation_velocity;
+                if (g_AngleYBunny - bunny_ultimo_angulo > M_PI/2){
+                    bunny_idol_rotating = false;
+                    g_AngleYBunny = bunny_ultimo_angulo + M_PI/2;
+                }
+            }
             // Se coelho foi recuperado, desenha no altar
             model = Matrix_Translate(3.0f,-0.2f,-3.0f)
-                  * Matrix_Scale(0.3f, 0.3f,0.3f);
+                  * Matrix_Scale(0.3f, 0.3f,0.3f)
+                  * Matrix_Rotate_Y(g_AngleYBunny);
             glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(object_id_uniform, BUNNY);
             DrawVirtualObject("bunny");
@@ -518,9 +682,20 @@ int main(int argc, char* argv[])
         //VACA
         //==========================================================================
         if (cow_idol_retrieved){
+            if (cow_idol_rotating){
+                float cow_t = glfwGetTime();
+                float cow_delta_t = cow_t - cow_t_ultimo_movimento;
+                cow_t_ultimo_movimento = cow_t;
+                g_AngleYCow = g_AngleYCow + cow_delta_t * rotation_velocity;
+                if (g_AngleYCow - cow_ultimo_angulo > M_PI/2){
+                    cow_idol_rotating = false;
+                    g_AngleYCow = cow_ultimo_angulo + M_PI/2;
+                }
+            }
             // Se vaca foi recuperado, desenha no altar
             model = Matrix_Translate(-3.0f,-0.2f,-3.0f)
-                  * Matrix_Scale(0.5f, 0.5f,0.5f);
+                  * Matrix_Scale(0.5f, 0.5f,0.5f)
+                  * Matrix_Rotate_Y(g_AngleYCow);
             glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(object_id_uniform, COW);
             DrawVirtualObject("cow");
@@ -540,10 +715,21 @@ int main(int argc, char* argv[])
         //==========================================================================
 
         if (deer_idol_retrieved){
+            if (deer_idol_rotating){
+                float deer_t = glfwGetTime();
+                float deer_delta_t = deer_t - deer_t_ultimo_movimento;
+                deer_t_ultimo_movimento = deer_t;
+                g_AngleYDeer = g_AngleYDeer + deer_delta_t * rotation_velocity;
+                if (g_AngleYDeer - deer_ultimo_angulo > M_PI/2){
+                    deer_idol_rotating = false;
+                    g_AngleYDeer = deer_ultimo_angulo + M_PI/2;
+                }
+            }
             // Se veado foi recuperado, desenha no altar
             model = Matrix_Translate(-3.0f, -0.5f, 3.0f)
                   * Matrix_Scale(0.005f, 0.005f,0.005f)
-                  * Matrix_Rotate_X(-3.141592/2);
+                  * Matrix_Rotate_X(-3.141592/2)
+                  * Matrix_Rotate_Z(g_AngleYDeer);
             glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(object_id_uniform, VEADO);
             DrawVirtualObject("veado");
@@ -563,15 +749,26 @@ int main(int argc, char* argv[])
         //==========================================================================
 
         if (duck_idol_retrieved){
+            if (duck_idol_rotating){
+                float duck_t = glfwGetTime();
+                float duck_delta_t = duck_t - duck_t_ultimo_movimento;
+                duck_t_ultimo_movimento = duck_t;
+                g_AngleYDuck = g_AngleYDuck + duck_delta_t * rotation_velocity;
+                if (g_AngleYDuck - duck_ultimo_angulo > M_PI/2){
+                    duck_idol_rotating = false;
+                    g_AngleYDuck = duck_ultimo_angulo + M_PI/2;
+                }
+            }
             // Se pato foi recuperado, desenha no altar
             model = Matrix_Translate(3.0f, -0.5f, 3.0f)
                   * Matrix_Scale(0.01f, 0.01f,0.01f)
-                  * Matrix_Rotate_X(-3.141592/2);
+                  * Matrix_Rotate_X(-3.141592/2)
+                  * Matrix_Rotate_Z(g_AngleYDuck);
             glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
             glUniform1i(object_id_uniform, PATO);
             DrawVirtualObject("pato");
         }
-        if (!cow_idol_found){
+        if (!duck_idol_found){
             // Se coelho ainda não foi achado, desenha no campo
             model = Matrix_Translate(12.0f,-1.1f,50.0f)
                   * Matrix_Scale(0.01f, 0.01f,0.01f)
@@ -622,9 +819,6 @@ int main(int argc, char* argv[])
         //glm::vec4 p_model(0.5f, 0.5f, 0.5f, 1.0f);
         //TextRendering_ShowModelViewProjection(window, projection, view, model, p_model);
 
-        // Imprimimos na tela os ângulos de Euler que controlam a rotação do
-        // terceiro cubo.
-        TextRendering_ShowEulerAngles(window);
 
         // Imprimimos na informação sobre a matriz de projeção sendo utilizada.
         TextRendering_ShowProjection(window);
@@ -646,6 +840,15 @@ int main(int argc, char* argv[])
         // definidas anteriormente usando glfwSet*Callback() serão chamadas
         // pela biblioteca GLFW.
         glfwPollEvents();
+
+
+        //COLINHA SECRETA DOS DESENVOLVEDORES
+        printf("d1: %f | d2: %f | d3: %f | d4: %f\n",norm(glm::vec4(19.0f,-0.8f,-42.0f,1.0f) - camera_position_c),
+                                                     norm(glm::vec4(-5.0f,-0.8f,37.0f,1.0f) - camera_position_c),
+                                                     norm(glm::vec4(-40.0f,-1.0f,-15.0f,1.0f) - camera_position_c),
+                                                     norm(glm::vec4(12.0f,-1.1f,50.0f,1.0f) - camera_position_c));
+
+
     }
 
     // Finalizamos o uso dos recursos do sistema operacional
@@ -682,8 +885,8 @@ void LoadTextureImage(const char* filename)
     glGenSamplers(1, &sampler_id);
 
     // Veja slides 95-96 do documento Aula_20_Mapeamento_de_Texturas.pdf
-    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glSamplerParameteri(sampler_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     // Parâmetros de amostragem da textura.
     glSamplerParameteri(sampler_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -1198,11 +1401,6 @@ void FramebufferSizeCallback(GLFWwindow* window, int width, int height)
 // de tempo. Utilizadas no callback CursorPosCallback() abaixo.
 double g_LastCursorPosX, g_LastCursorPosY;
 
-// Função callback chamada sempre que o usuário aperta algum dos botões do mouse
-void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
-{
-
-}
 
 // Função callback chamada sempre que o usuário movimentar o cursor do mouse em
 // cima da janela OpenGL.
@@ -1252,6 +1450,12 @@ void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
         g_CameraDistance = verysmallnumber;
 }
 
+// Função callback chamada sempre que o usuário aperta algum dos botões do mouse
+void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+
+}
+
 // Definição da função que será chamada sempre que o usuário pressionar alguma
 // tecla do teclado. Veja http://www.glfw.org/docs/latest/input_guide.html#input_key
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
@@ -1268,67 +1472,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 
-    // O código abaixo implementa a seguinte lógica:
-    //   Se apertar tecla X       então g_AngleX += delta;
-    //   Se apertar tecla shift+X então g_AngleX -= delta;
-    //   Se apertar tecla Y       então g_AngleY += delta;
-    //   Se apertar tecla shift+Y então g_AngleY -= delta;
-    //   Se apertar tecla Z       então g_AngleZ += delta;
-    //   Se apertar tecla shift+Z então g_AngleZ -= delta;
-
-    float delta = 3.141592 / 16; // 22.5 graus, em radianos.
-
-    if (key == GLFW_KEY_X && action == GLFW_PRESS)
-    {
-        g_AngleX += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-    }
-
-    if (key == GLFW_KEY_Y && action == GLFW_PRESS)
-    {
-        g_AngleY += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-    }
-    if (key == GLFW_KEY_Z && action == GLFW_PRESS)
-    {
-        g_AngleZ += (mod & GLFW_MOD_SHIFT) ? -delta : delta;
-    }
-
-    // Se o usuário apertar a tecla espaço, resetamos os ângulos de Euler para zero.
-    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
-    {
-        g_AngleX = 0.0f;
-        g_AngleY = 0.0f;
-        g_AngleZ = 0.0f;
-        g_ForearmAngleX = 0.0f;
-        g_ForearmAngleZ = 0.0f;
-        g_TorsoPositionX = 0.0f;
-        g_TorsoPositionY = 0.0f;
-    }
-
-    // Se o usuário apertar a tecla P, utilizamos projeção perspectiva.
-    if (key == GLFW_KEY_P && action == GLFW_PRESS)
-    {
-        g_UsePerspectiveProjection = true;
-    }
-
-    // Se o usuário apertar a tecla O, utilizamos projeção ortográfica.
-    if (key == GLFW_KEY_O && action == GLFW_PRESS)
-    {
-        g_UsePerspectiveProjection = false;
-    }
-
-    // Se o usuário apertar a tecla H, fazemos um "toggle" do texto informativo mostrado na tela.
-    if (key == GLFW_KEY_H && action == GLFW_PRESS)
-    {
-        g_ShowInfoText = !g_ShowInfoText;
-    }
-
-    // Se o usuário apertar a tecla R, recarregamos os shaders dos arquivos "shader_fragment.glsl" e "shader_vertex.glsl".
-    if (key == GLFW_KEY_R && action == GLFW_PRESS)
-    {
-        LoadShadersFromFiles();
-        fprintf(stdout,"Shaders recarregados!\n");
-        fflush(stdout);
-    }
 
     // se o usuário apertar qualquer tecla de deslocamento, a sua flag é setada para true, se soltar, para false
     if (key == GLFW_KEY_W && action == GLFW_PRESS)
@@ -1365,6 +1508,15 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mod)
     if (key == GLFW_KEY_D && action == GLFW_RELEASE)
     {
         g_DKeyPressed = false;
+    }
+
+    if (key == GLFW_KEY_E && action == GLFW_PRESS)
+    {
+        g_EKeyPressed = true;
+    }
+    if (key == GLFW_KEY_E && action == GLFW_RELEASE)
+    {
+        g_EKeyPressed = false;
     }
 }
 
@@ -1436,20 +1588,6 @@ void TextRendering_ShowModelViewProjection(
     TextRendering_PrintMatrixVectorProductMoreDigits(window, viewport_mapping, p_ndc, -1.0f, 1.0f-26*pad, 1.0f);
 }
 
-// Escrevemos na tela os ângulos de Euler definidos nas variáveis globais
-// g_AngleX, g_AngleY, e g_AngleZ.
-void TextRendering_ShowEulerAngles(GLFWwindow* window)
-{
-    if ( !g_ShowInfoText )
-        return;
-
-    float pad = TextRendering_LineHeight(window);
-
-    char buffer[80];
-    snprintf(buffer, 80, "Euler Angles rotation matrix = Z(%.2f)*Y(%.2f)*X(%.2f)\n", g_AngleZ, g_AngleY, g_AngleX);
-
-    TextRendering_PrintString(window, buffer, -1.0f+pad/10, -1.0f+2*pad/10, 1.0f);
-}
 
 // Escrevemos na tela qual matriz de projeção está sendo utilizada.
 void TextRendering_ShowProjection(GLFWwindow* window)
@@ -1470,6 +1608,8 @@ void TextRendering_ShowProjection(GLFWwindow* window)
 // second).
 void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
 {
+
+    glColor3f(1.0f, 1.0f, 1.0f);
     if ( !g_ShowInfoText )
         return;
 
@@ -1479,6 +1619,8 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
     static int   ellapsed_frames = 0;
     static char  buffer[20] = "?? fps";
     static int   numchars = 7;
+
+
 
     ellapsed_frames += 1;
 
@@ -1499,7 +1641,7 @@ void TextRendering_ShowFramesPerSecond(GLFWwindow* window)
     float lineheight = TextRendering_LineHeight(window);
     float charwidth = TextRendering_CharWidth(window);
 
-    TextRendering_PrintString(window, buffer, 1.0f-(numchars + 1)*charwidth, 1.0f-lineheight, 1.0f);
+    TextRendering_PrintString(window, buffer, 0.5f-(numchars + 1)*charwidth, 0.5f-lineheight, 1.0f);
 }
 
 // Função para debugging: imprime no terminal todas informações de um modelo

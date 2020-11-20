@@ -26,6 +26,7 @@ uniform mat4 projection;
 #define VEADO 4
 #define PATO 5
 #define CUBE 6
+#define SKYDOME 7
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -83,7 +84,7 @@ void main()
 
     vec3 Kd;
 
-    if ( object_id == SPHERE )
+    if ( object_id == SKYDOME )
     {
         vec4 bbox_center = (bbox_min + bbox_max) / 2.0;
 
@@ -117,8 +118,8 @@ void main()
     else if ( object_id == PLANE )
     {
 
-        U = texcoords.x;
-        V = texcoords.y;
+        U = texcoords.x * 30;
+        V = texcoords.y * 30;
 
         Kd = texture(TextureImage2, vec2(U,V)).rgb;
 
@@ -134,8 +135,8 @@ void main()
         float rz = bbox_min.z;
         float qz = bbox_max.z;
 
-        U = (position_model.x - rx) / (qx - rx);
-        V = (position_model.z - rz) / (qz - rz);
+        U = ((position_model.x - rx) / (qx - rx)) * 4;
+        V = ((position_model.z - rz) / (qz - rz)) * 4;
 
         Kd = texture(TextureImage1, vec2(U,V)).rgb;
     }
@@ -144,9 +145,13 @@ void main()
     // Equação de Iluminação
     float lambert = max(0,dot(n,l));
 
+    if ( object_id == SKYDOME )
+    {
+        color = Kd * (lambert + 0.01) * 0.2;
+    }
 
-    if (dot(normalize(p-camera_position),normalize(-camera_view_vector))<cos(M_PI/6)){
-            color = Kd * 0.005 ;
+    else if (dot(normalize(p-camera_position),normalize(-camera_view_vector))<cos(M_PI/9)){
+            color = Kd * 0.002 ;
     }
     else {
             color = Kd * (lambert + 0.01) / max(length(p-camera_position), 1);
