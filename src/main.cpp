@@ -265,7 +265,17 @@ float g_AngleZDuck = 0.0f;
 
 float rotation_velocity = 2;
 
+// Lever
+bool lever_moving = false;
+float g_angleZLever = -M_PI/4;
+float lever_t_ultimo_movimento = glfwGetTime();
+bool lever_left = true;
 
+// VICTORY ANGLE
+float victory_pato = M_PI/2;
+float victory_bunny = 0;
+float victory_veado = 3*M_PI/2;
+float victory_cow = M_PI/2;
 
 int main(int argc, char* argv[])
 {
@@ -346,7 +356,8 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/grass.jpg");                       // TextureImage2
     LoadTextureImage("../../data/idol_texture.png");                // TextureImage3
     LoadTextureImage("../../data/skybox.png");                      // TextureImage4
-
+    LoadTextureImage("../../data/wood_texture.png");                // TextureImage5
+    LoadTextureImage("../../data/cooper_texture.png");              // TextureImage6
 
 
 
@@ -384,6 +395,13 @@ int main(int argc, char* argv[])
     ComputeNormals(&skydomemodel);
     BuildTrianglesAndAddToVirtualScene(&skydomemodel);
 
+    ObjModel cilindermodel("../../data/cilinder.obj");
+    ComputeNormals(&cilindermodel);
+    BuildTrianglesAndAddToVirtualScene(&cilindermodel);
+
+    ObjModel levermodel("../../data/lever.obj");
+    ComputeNormals(&levermodel);
+    BuildTrianglesAndAddToVirtualScene(&levermodel);
 
     if ( argc > 1 )
     {
@@ -409,7 +427,7 @@ int main(int argc, char* argv[])
     glm::mat4 the_view;
 
     //setamos a posição inicial da camera
-    glm::vec4 camera_position_c  = glm::vec4(0.0f,0.5f,0.0f,1.0f);
+    glm::vec4 camera_position_c  = glm::vec4(0.5f,0.5f,0.5f,1.0f);
 
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
@@ -623,17 +641,32 @@ int main(int argc, char* argv[])
             duck_ultimo_angulo = g_AngleYDuck;
         }
 
-        #define SPHERE 0
-        #define BUNNY  1
-        #define PLANE  2
-        #define COW 3
-        #define VEADO 4
-        #define PATO 5
-        #define CUBE 6
-        #define SKYDOME 7
+         //ALAVANCA
+        if (acos(dotproduct((glm::vec4(0.0f, 0.5f, 0.0f, 1.0f)-camera_position_c)/norm(glm::vec4(0.0f, 0.5f, 0.0f, 1.0f)-camera_position_c),
+                                          (camera_view_vector/norm(camera_view_vector)))) < cos(M_PI/18)
+            && g_EKeyPressed
+            && norm(glm::vec4(0.0f, 0.5f, 0.0f, 1.0f) - camera_position_c) < 4
+            && !lever_moving){
+            lever_moving = true;
+            lever_t_ultimo_movimento = glfwGetTime();
+        }
+
+        #define SPHERE   0
+        #define BUNNY    1
+        #define PLANE    2
+        #define COW      3
+        #define VEADO    4
+        #define PATO     5
+        #define CUBE     6
+        #define SKYDOME  7
+        #define CILINDER 8
+        #define LEVER    9
 
         // Desenhamos a skyboxd
-        model = Matrix_Scale(100.0f, 100.0f, 100.0f);
+        model = Matrix_Translate(camera_position_c[0],
+                                 0,
+                                 camera_position_c[2])
+                *Matrix_Scale(100.0f, 100.0f, 100.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, SKYDOME);
         DrawVirtualObject("skydome");
@@ -660,6 +693,8 @@ int main(int argc, char* argv[])
                     bunny_idol_rotating = false;
                     g_AngleYBunny = bunny_ultimo_angulo + M_PI/2;
                 }
+                if(g_AngleYBunny >= 2*M_PI)
+                    g_AngleYBunny = 0;
             }
             // Se coelho foi recuperado, desenha no altar
             model = Matrix_Translate(3.0f,-0.2f,-3.0f)
@@ -691,6 +726,8 @@ int main(int argc, char* argv[])
                     cow_idol_rotating = false;
                     g_AngleYCow = cow_ultimo_angulo + M_PI/2;
                 }
+                if(g_AngleYCow >= 2*M_PI)
+                    g_AngleYCow = 0;
             }
             // Se vaca foi recuperado, desenha no altar
             model = Matrix_Translate(-3.0f,-0.2f,-3.0f)
@@ -724,6 +761,8 @@ int main(int argc, char* argv[])
                     deer_idol_rotating = false;
                     g_AngleYDeer = deer_ultimo_angulo + M_PI/2;
                 }
+                if(g_AngleYDeer >= 2*M_PI)
+                    g_AngleYDeer = 0;
             }
             // Se veado foi recuperado, desenha no altar
             model = Matrix_Translate(-3.0f, -0.5f, 3.0f)
@@ -758,6 +797,8 @@ int main(int argc, char* argv[])
                     duck_idol_rotating = false;
                     g_AngleYDuck = duck_ultimo_angulo + M_PI/2;
                 }
+                if(g_AngleYDuck >= 2*M_PI)
+                    g_AngleYDuck = 0;
             }
             // Se pato foi recuperado, desenha no altar
             model = Matrix_Translate(3.0f, -0.5f, 3.0f)
@@ -781,6 +822,53 @@ int main(int argc, char* argv[])
 
         //=========================================================================
         // Desenho do Altar
+
+        model = Matrix_Translate(0.0f, -1.0f, 0.0f)
+              * Matrix_Scale(0.5f, 0.5f, 0.5f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, CILINDER);
+        DrawVirtualObject("cilinder");
+
+        if(lever_moving){
+            float lever_t = glfwGetTime();
+            float lever_delta_t = lever_t - lever_t_ultimo_movimento;
+            lever_t_ultimo_movimento = lever_t;
+
+            if(g_angleZLever > M_PI/4){
+                lever_left = false;
+                g_angleZLever = M_PI/4;
+            }
+
+            if(lever_left){
+                g_angleZLever = g_angleZLever + lever_delta_t * rotation_velocity;
+            }
+            else
+                g_angleZLever = g_angleZLever - lever_delta_t * rotation_velocity;
+
+            if(g_angleZLever <= -M_PI/4){
+                lever_moving = false;
+                lever_left = true;
+                g_angleZLever = -M_PI/4;
+
+                if(g_AngleYDuck == victory_pato
+                   && g_AngleYBunny == victory_bunny
+                   && g_AngleYCow == victory_cow
+                   && g_AngleYDeer == victory_veado)
+                    return 0;
+            }
+
+        }
+        printf("Lever Moving %d\n", lever_moving);
+
+        model = Matrix_Translate(0.0f, -1.0f, 0.0f)
+              * Matrix_Rotate_Z(g_angleZLever)
+              * Matrix_Scale(0.5f, 3.0f, 0.5f);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, LEVER);
+        DrawVirtualObject("lever");
+
+
+
         model = Matrix_Translate(0.0f, -1.0f, 0.0f)
               * Matrix_Scale(6.0f, 0.1f,6.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
@@ -843,11 +931,12 @@ int main(int argc, char* argv[])
 
 
         //COLINHA SECRETA DOS DESENVOLVEDORES
-        printf("d1: %f | d2: %f | d3: %f | d4: %f\n",norm(glm::vec4(19.0f,-0.8f,-42.0f,1.0f) - camera_position_c),
-                                                     norm(glm::vec4(-5.0f,-0.8f,37.0f,1.0f) - camera_position_c),
-                                                     norm(glm::vec4(-40.0f,-1.0f,-15.0f,1.0f) - camera_position_c),
-                                                     norm(glm::vec4(12.0f,-1.1f,50.0f,1.0f) - camera_position_c));
+        //printf("d1: %f | d2: %f | d3: %f | d4: %f\n",norm(glm::vec4(19.0f,-0.8f,-42.0f,1.0f) - camera_position_c),
+        //                                             norm(glm::vec4(-5.0f,-0.8f,37.0f,1.0f) - camera_position_c),
+        //                                             norm(glm::vec4(-40.0f,-1.0f,-15.0f,1.0f) - camera_position_c),
+        //                                             norm(glm::vec4(12.0f,-1.1f,50.0f,1.0f) - camera_position_c));
 
+        printf("%d, %d, %d, %d",victory_cow == g_AngleYCow, victory_pato == g_AngleYDuck, victory_veado== g_AngleYDeer, g_AngleYBunny == victory_bunny );
 
     }
 
@@ -995,6 +1084,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(program_id, "TextureImage2"), 2);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage3"), 3);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), 4);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage5"), 5);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage6"), 6);
 
     glUseProgram(0);
 }

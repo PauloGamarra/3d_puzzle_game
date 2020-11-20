@@ -27,6 +27,8 @@ uniform mat4 projection;
 #define PATO 5
 #define CUBE 6
 #define SKYDOME 7
+#define CILINDER 8
+#define LEVER 9
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -39,7 +41,8 @@ uniform sampler2D TextureImage1;
 uniform sampler2D TextureImage2;
 uniform sampler2D TextureImage3;
 uniform sampler2D TextureImage4;
-
+uniform sampler2D TextureImage5;
+uniform sampler2D TextureImage6;
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
@@ -141,6 +144,39 @@ void main()
         Kd = texture(TextureImage1, vec2(U,V)).rgb;
     }
 
+    else if (object_id == CILINDER)
+    {
+        float rx = bbox_min.x;
+        float qx = bbox_max.x;
+
+        float ry = bbox_min.y;
+        float qy = bbox_max.y;
+
+        float rz = bbox_min.z;
+        float qz = bbox_max.z;
+
+        U = ((position_model.x - rx) / (qx - rx)) * 4;
+        V = ((position_model.z - rz) / (qz - rz)) * 4;
+
+        Kd = texture(TextureImage5, vec2(U,V)).rgb;
+    }
+
+        else if (object_id == LEVER)
+    {
+        float rx = bbox_min.x;
+        float qx = bbox_max.x;
+
+        float ry = bbox_min.y;
+        float qy = bbox_max.y;
+
+        float rz = bbox_min.z;
+        float qz = bbox_max.z;
+
+        U = ((position_model.x - rx) / (qx - rx)) * 4;
+        V = ((position_model.z - rz) / (qz - rz)) * 4;
+
+        Kd = texture(TextureImage6, vec2(U,V)).rgb;
+    }
 
     // Equação de Iluminação
     float lambert = max(0,dot(n,l));
