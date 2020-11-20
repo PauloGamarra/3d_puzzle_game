@@ -633,7 +633,10 @@ int main(int argc, char* argv[])
         #define SKYDOME 7
 
         // Desenhamos a skyboxd
-        model = Matrix_Scale(100.0f, 100.0f, 100.0f);
+        model = Matrix_Translate(camera_position_c[0],
+                                 0,
+                                 camera_position_c[2])
+              * Matrix_Scale(200.0f, 200.0f, 200.0f);
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, SKYDOME);
         DrawVirtualObject("skydome");
