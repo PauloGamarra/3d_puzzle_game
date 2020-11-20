@@ -214,8 +214,8 @@ float speed = 5;
 bool g_EKeyPressed = false;
 
 //resolução da tela
-int win_width = 1800;
-int win_height = 900;
+int win_width = 1920;
+int win_height = 1080;
 
 
 // booleanos de estado do jogo
@@ -275,7 +275,48 @@ bool lever_left = true;
 float victory_pato = M_PI/2;
 float victory_bunny = 0;
 float victory_veado = 3*M_PI/2;
-float victory_cow = M_PI/2;
+float victory_cow = M_PI;
+
+bool colisao(glm::vec4 posicao)
+{
+    //Teste intersecção muro 1
+    if (0.2 > abs(posicao[0] - (-60)))
+        return true;
+    //Teste intersecção muro 2
+    if (0.2 > abs(posicao[0] - (60)))
+        return true;
+    //teste intersecção muro 3
+    if (0.2 > abs(posicao[2] - (-60)))
+        return true;
+    //teste intersecção muro 4
+    if (0.2 > abs(posicao[2] - (60)))
+        return true;
+
+
+    //teste de intersecção com a alavanca
+    if (1.0 > norm(posicao-glm::vec4(0.0f,0.0f,0.0f,1.0f)))
+        return true;
+
+    //teste de intersecção com pedestal 1
+    if (posicao[0] > 2.5 && posicao[0] < 3.5 && posicao[2] > 2.5 && posicao[2] < 3.5)
+        return true;
+
+    //teste de intersecção com pedestal 1
+    if (posicao[0] > -3.5 && posicao[0] < -2.5 && posicao[2] > -3.5 && posicao[2] < -2.5)
+        return true;
+
+    //teste de intersecção com pedestal 1
+    if (posicao[0] > 2.5 && posicao[0] < 3.5 && posicao[2] > -3.5 && posicao[2] < -2.5)
+        return true;
+
+    //teste de intersecção com pedestal 1
+    if (posicao[0] > -3.5 && posicao[0] < -2.5 && posicao[2] > 2.5 && posicao[2] < 3.5)
+        return true;
+
+
+
+    return false;
+}
 
 int main(int argc, char* argv[])
 {
@@ -358,6 +399,8 @@ int main(int argc, char* argv[])
     LoadTextureImage("../../data/skybox.png");                      // TextureImage4
     LoadTextureImage("../../data/wood_texture.png");                // TextureImage5
     LoadTextureImage("../../data/cooper_texture.png");              // TextureImage6
+    LoadTextureImage("../../data/wall.jpg");                        // TextureImage7
+
 
 
 
@@ -427,8 +470,8 @@ int main(int argc, char* argv[])
     glm::mat4 the_view;
 
     //setamos a posição inicial da camera
-    glm::vec4 camera_position_c  = glm::vec4(0.5f,0.5f,0.5f,1.0f);
-
+    glm::vec4 camera_position_c  = glm::vec4(4.0f,0.5f,4.0f,1.0f);
+    glm::vec4 camera_position_buffer;
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
@@ -466,31 +509,49 @@ int main(int argc, char* argv[])
         float z = r*cos(g_CameraPhi)*cos(g_CameraTheta);
         float x = r*cos(g_CameraPhi)*sin(g_CameraTheta);
 
-        // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
-        // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
-        glm::vec4 camera_view_vector    = glm::vec4(x,-y,z,0.0f);
+
+        glm::vec4 camera_view_vector;
         glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f);
-        glm::vec4 camera_w_vector = -camera_view_vector / norm(camera_view_vector);
-        glm::vec4 camera_u_vector = crossproduct(camera_up_vector,camera_w_vector) / norm(crossproduct(camera_up_vector,camera_w_vector));
 
-        camera_w_vector[1] = 0;
-        camera_w_vector = camera_w_vector/norm(camera_w_vector);
+        if (!lever_moving)
+        {
+            // Abaixo definimos as varáveis que efetivamente definem a câmera virtual.
+            // Veja slides 195-227 e 229-234 do documento Aula_08_Sistemas_de_Coordenadas.pdf.
+            camera_view_vector    = glm::vec4(x,-y,z,0.0f);
+            glm::vec4 camera_w_vector = -camera_view_vector / norm(camera_view_vector);
+            glm::vec4 camera_u_vector = crossproduct(camera_up_vector,camera_w_vector) / norm(crossproduct(camera_up_vector,camera_w_vector));
 
-        //se alguma das teclas de deslocamento foi pressionada, é dado um passo da posição da camera na direção correspondente
-        float t_now = glfwGetTime();
-        float delta_t_movimento = t_now - t_ultimo_movimento;
-        t_ultimo_movimento = t_now;
-        if (g_WKeyPressed){
-            camera_position_c = camera_position_c - camera_w_vector * speed * delta_t_movimento;
+            camera_w_vector[1] = 0;
+            camera_w_vector = camera_w_vector/norm(camera_w_vector);
+
+            //se alguma das teclas de deslocamento foi pressionada, é dado um passo da posição da camera na direção correspondente
+            float t_now = glfwGetTime();
+            float delta_t_movimento = t_now - t_ultimo_movimento;
+            t_ultimo_movimento = t_now;
+            if (g_WKeyPressed){
+                if(!colisao(camera_position_c - camera_w_vector * speed * delta_t_movimento))
+                camera_position_c = camera_position_c - camera_w_vector * speed * delta_t_movimento;
+            }
+            if (g_SKeyPressed){
+                if(!colisao(camera_position_c + camera_w_vector * speed * delta_t_movimento))
+                camera_position_c = camera_position_c + camera_w_vector * speed * delta_t_movimento;
+            }
+            if (g_DKeyPressed){
+                if(!colisao(camera_position_c + camera_u_vector * speed * delta_t_movimento))
+                camera_position_c = camera_position_c + camera_u_vector * speed * delta_t_movimento;
+            }
+            if (g_AKeyPressed){
+                if(!colisao(camera_position_c - camera_u_vector * speed * delta_t_movimento))
+                camera_position_c = camera_position_c - camera_u_vector * speed * delta_t_movimento;
+            }
+
         }
-        if (g_SKeyPressed){
-            camera_position_c = camera_position_c + camera_w_vector * speed * delta_t_movimento;
-        }
-        if (g_DKeyPressed){
-            camera_position_c = camera_position_c + camera_u_vector * speed * delta_t_movimento;
-        }
-        if (g_AKeyPressed){
-            camera_position_c = camera_position_c - camera_u_vector * speed * delta_t_movimento;
+        else
+        {
+            camera_position_c = glm::vec4(0,2,4,1.0f);
+
+            glm::vec4 camera_up_vector   = glm::vec4(0.0f,1.0f,0.0f,0.0f);
+            camera_view_vector = glm::vec4(0.0f,0.0f,0.0f,1.0f) - camera_position_c;
         }
 
         // Computamos a matriz "View" utilizando os parâmetros da câmera para
@@ -649,6 +710,8 @@ int main(int argc, char* argv[])
             && !lever_moving){
             lever_moving = true;
             lever_t_ultimo_movimento = glfwGetTime();
+            camera_position_buffer = camera_position_c;
+
         }
 
         #define SPHERE   0
@@ -661,6 +724,9 @@ int main(int argc, char* argv[])
         #define SKYDOME  7
         #define CILINDER 8
         #define LEVER    9
+        #define XWALL    10
+        #define ZWALL    11
+
 
         // Desenhamos a skyboxd
         model = Matrix_Translate(camera_position_c[0],
@@ -840,16 +906,14 @@ int main(int argc, char* argv[])
                 g_angleZLever = M_PI/4;
             }
 
-            if(lever_left){
-                g_angleZLever = g_angleZLever + lever_delta_t * rotation_velocity;
-            }
-            else
+            if(!lever_left)
                 g_angleZLever = g_angleZLever - lever_delta_t * rotation_velocity;
 
-            if(g_angleZLever <= -M_PI/4){
+            if(g_angleZLever <= -M_PI/4 && !lever_left){
                 lever_moving = false;
                 lever_left = true;
                 g_angleZLever = -M_PI/4;
+                camera_position_c = camera_position_buffer;
 
                 if(g_AngleYDuck == victory_pato
                    && g_AngleYBunny == victory_bunny
@@ -899,6 +963,38 @@ int main(int argc, char* argv[])
         glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
         glUniform1i(object_id_uniform, CUBE);
         DrawVirtualObject("cube");
+
+        //=========================================================================
+        // Desenho do Muro
+        model = Matrix_Translate(0.0f, -1.0f, -60.0f)
+              * Matrix_Scale(60.0f, 2.0f,60.0f)
+              * Matrix_Rotate_X(M_PI_2);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, XWALL);
+        DrawVirtualObject("plane");
+
+        model = Matrix_Translate(0.0f, -1.0f, 60.0f)
+              * Matrix_Scale(60.0f, 2.0f,60.0f)
+              * Matrix_Rotate_X(-M_PI_2);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, XWALL);
+        DrawVirtualObject("plane");
+
+        model = Matrix_Translate(-60.0f, -1.0f, 0.0f)
+              * Matrix_Scale(60.0f, 2.0f,60.0f)
+              * Matrix_Rotate_Z(-M_PI_2);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, ZWALL);
+        DrawVirtualObject("plane");
+
+        model = Matrix_Translate(60.0f, -1.0f, 0.0f)
+              * Matrix_Scale(60.0f, 2.0f,60.0f)
+              * Matrix_Rotate_Z(M_PI_2);
+        glUniformMatrix4fv(model_uniform, 1 , GL_FALSE , glm::value_ptr(model));
+        glUniform1i(object_id_uniform, ZWALL);
+        DrawVirtualObject("plane");
+
+
         //=========================================================================
 
         // Pegamos um vértice com coordenadas de modelo (0.5, 0.5, 0.5, 1) e o
@@ -937,7 +1033,13 @@ int main(int argc, char* argv[])
         //                                             norm(glm::vec4(-40.0f,-1.0f,-15.0f,1.0f) - camera_position_c),
         //                                             norm(glm::vec4(12.0f,-1.1f,50.0f,1.0f) - camera_position_c));
 
-        printf("%d, %d, %d, %d",victory_cow == g_AngleYCow, victory_pato == g_AngleYDuck, victory_veado== g_AngleYDeer, g_AngleYBunny == victory_bunny );
+        printf("| %d | %d | %d | %d |pos:( %f , %f , %f )",victory_cow == g_AngleYCow,
+                                                           victory_pato == g_AngleYDuck,
+                                                           victory_veado== g_AngleYDeer,
+                                                           g_AngleYBunny == victory_bunny,
+                                                           camera_position_c[0],
+                                                           camera_position_c[1],
+                                                           camera_position_c[2]);
 
     }
 
@@ -1087,6 +1189,8 @@ void LoadShadersFromFiles()
     glUniform1i(glGetUniformLocation(program_id, "TextureImage4"), 4);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage5"), 5);
     glUniform1i(glGetUniformLocation(program_id, "TextureImage6"), 6);
+    glUniform1i(glGetUniformLocation(program_id, "TextureImage7"), 7);
+
 
     glUseProgram(0);
 }
@@ -1504,25 +1608,44 @@ void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
     // Assim, temos que o usuário consegue controlar a câmera.
 
 
-    // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
-    float dx = xpos - win_width/2;
-    float dy = ypos - win_height/2;
 
-    glfwSetCursorPos(window,win_width/2, win_height/2);
+    if(!lever_moving){
+        // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
+        float dx = xpos - win_width/2;
+        float dy = ypos - win_height/2;
 
-    // Atualizamos parâmetros da câmera com os deslocamentos
-    g_CameraTheta -= 0.01f*dx;
-    g_CameraPhi   += 0.01f*dy;
+        glfwSetCursorPos(window,win_width/2, win_height/2);
 
-    // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
-    float phimax = 3.141592f/2;
-    float phimin = -phimax;
+        // Atualizamos parâmetros da câmera com os deslocamentos
+        g_CameraTheta -= 0.01f*dx;
+        g_CameraPhi   += 0.01f*dy;
 
-    if (g_CameraPhi > phimax)
-        g_CameraPhi = phimax;
+        // Em coordenadas esféricas, o ângulo phi deve ficar entre -pi/2 e +pi/2.
+        float phimax = 3.141592f/2;
+        float phimin = -phimax;
 
-    if (g_CameraPhi < phimin)
-        g_CameraPhi = phimin;
+        if (g_CameraPhi > phimax)
+            g_CameraPhi = phimax;
+
+        if (g_CameraPhi < phimin)
+            g_CameraPhi = phimin;
+    }
+    else if(lever_left)
+    {
+        // Deslocamento do cursor do mouse em x e y de coordenadas de tela!
+        float dx = xpos - g_LastCursorPosX;
+        float dy = ypos - g_LastCursorPosY;
+
+        // Atualizamos parâmetros da antebraço com os deslocamentos
+        if (dx < 0)
+            g_angleZLever -= 0.005f*dx;
+        glfwSetCursorPos(window,win_width/2, win_height/2);
+
+        // Atualizamos as variáveis globais para armazenar a posição atual do
+        // cursor como sendo a última posição conhecida do cursor.
+        g_LastCursorPosX = xpos;
+        g_LastCursorPosY = ypos;
+    }
 }
 
 // Função callback chamada sempre que o usuário movimenta a "rodinha" do mouse.

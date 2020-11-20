@@ -29,6 +29,9 @@ uniform mat4 projection;
 #define SKYDOME 7
 #define CILINDER 8
 #define LEVER 9
+#define XWALL 10
+#define ZWALL 11
+
 uniform int object_id;
 
 // Parâmetros da axis-aligned bounding box (AABB) do modelo
@@ -43,6 +46,8 @@ uniform sampler2D TextureImage3;
 uniform sampler2D TextureImage4;
 uniform sampler2D TextureImage5;
 uniform sampler2D TextureImage6;
+uniform sampler2D TextureImage7;
+
 
 
 // O valor de saída ("out") de um Fragment Shader é a cor final do fragmento.
@@ -80,12 +85,22 @@ void main()
     // Vetor que define o sentido da câmera em relação ao ponto atual.
     vec4 v = normalize(camera_position - p);
 
+    // Vetor que define o sentido da reflexão especular ideal.
+    vec4 r = -l+2*n*dot(n,l); // PREENCHA AQUI o vetor de reflexão especular ideal
+
+    //half-vector do modelo de iluminação blinn-phong
+    vec4 h = normalize(v+l);
+
     // Coordenadas de textura U e V
     float U = 0.0;
     float V = 0.0;
 
 
-    vec3 Kd;
+    // Parâmetros que definem as propriedades espectrais da superfície
+    vec3 Kd; // Refletância difusa
+    vec3 Ks; // Refletância especular
+    vec3 Ka; // Refletância ambiente
+    float q; // Expoente especular para o modelo de iluminação de Phong
 
     if ( object_id == SKYDOME )
     {
@@ -101,6 +116,21 @@ void main()
 
         Kd = texture(TextureImage4, vec2(U,V)).rgb;
     }
+    if ( object_id == XWALL )
+    {
+        U = texcoords.x*16;
+        V = texcoords.y;
+
+        Kd = texture(TextureImage7, vec2(U,V)).rgb;
+    }
+    if ( object_id == ZWALL )
+    {
+        U = texcoords.x;
+        V = texcoords.y*16;
+
+        Kd = texture(TextureImage7, vec2(U,V)).rgb;
+    }
+
     else if ( object_id == BUNNY || object_id == VEADO || object_id == PATO || object_id == COW)
     {
         float rx = bbox_min.x;
@@ -142,6 +172,9 @@ void main()
         V = ((position_model.z - rz) / (qz - rz)) * 4;
 
         Kd = texture(TextureImage1, vec2(U,V)).rgb;
+        Ks = vec3(0.3,0.3,0.3);
+        Ka = vec3(0.0,0.0,0.0);
+        q = 20.0;
     }
 
     else if (object_id == CILINDER)
@@ -159,6 +192,9 @@ void main()
         V = ((position_model.z - rz) / (qz - rz)) * 4;
 
         Kd = texture(TextureImage5, vec2(U,V)).rgb;
+        Ks = vec3(0.3,0.3,0.3);
+        Ka = vec3(0.0,0.0,0.0);
+        q = 20.0;
     }
 
         else if (object_id == LEVER)
@@ -176,18 +212,47 @@ void main()
         V = ((position_model.z - rz) / (qz - rz)) * 4;
 
         Kd = texture(TextureImage6, vec2(U,V)).rgb;
+        Ks = vec3(0.3,0.3,0.3);
+        Ka = vec3(0.0,0.0,0.0);
+        q = 20.0;
     }
+
+    // Espectro da fonte de iluminação
+    vec3 I = vec3(1.0,1.0,1.0); // PREENCH AQUI o espectro da fonte de luz
+
+    // Espectro da luz ambiente
+    vec3 Ia = vec3(0.2,0.2,0.2); // PREENCHA AQUI o espectro da luz ambiente
+
+    // Termo difuso utilizando a lei dos cossenos de Lambert
+    vec3 lambert_diffuse_term =  Kd*I*max(0,dot(n,l)); // PREENCHA AQUI o termo difuso de Lambert
+
+    // Termo ambiente
+    vec3 ambient_term = Ka*Ia; // PREENCHA AQUI o termo ambiente
+
+    // Termo especular utilizando o modelo de iluminação de BLINN-Phong
+    vec3 blinn_phong_specular_term  = Ks*I*pow((dot(n,h)),q);
 
     // Equação de Iluminação
     float lambert = max(0,dot(n,l));
 
     if ( object_id == SKYDOME )
     {
-        color = Kd * (lambert + 0.01) * 0.2;
+        color = Kd * lambert * 0.2;
     }
 
-    else if (dot(normalize(p-camera_position),normalize(-camera_view_vector))<cos(M_PI/9)){
-            color = Kd * 0.002 ;
+    else if(object_id == CUBE || object_id == LEVER || object_id == CILINDER)
+    {
+        if(dot(normalize(p-camera_position),normalize(-camera_view_vector))<cos(M_PI/6))
+        {
+            color = ambient_term;
+        }
+        else
+        {
+            color = (lambert_diffuse_term + ambient_term + blinn_phong_specular_term) / max(length(p-camera_position), 1);
+        }
+    }
+    else if(dot(normalize(p-camera_position),normalize(-camera_view_vector))<cos(M_PI/6)){
+            color = ambient_term;
     }
     else {
             color = Kd * (lambert + 0.01) / max(length(p-camera_position), 1);
@@ -198,4 +263,3 @@ void main()
     // Veja https://en.wikipedia.org/w/index.php?title=Gamma_correction&oldid=751281772#Windows.2C_Mac.2C_sRGB_and_TV.2Fvideo_standard_gammas
     color = pow(color, vec3(1.0,1.0,1.0)/2.2);
 }
-
